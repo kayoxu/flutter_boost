@@ -24,7 +24,7 @@ support branch
 ```json
 flutter_boost:
     git:
-        url: 'https://github.com/alibaba/flutter_boost.git'
+        url: 'https://github.com/kayoxu/flutter_boost.git'
         ref: 'flutter1.12'
 ```
  
