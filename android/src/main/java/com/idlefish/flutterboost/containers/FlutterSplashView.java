@@ -16,7 +16,7 @@ import io.flutter.Log;
 import io.flutter.embedding.android.FlutterView;
 import io.flutter.embedding.android.SplashScreen;
 import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
+import io.flutter.embedding.engine.renderer.FlutterUiDisplayListener;
 
 import java.util.Date;
 
@@ -56,12 +56,12 @@ public class FlutterSplashView extends FrameLayout {
     };
 
     @NonNull
-    private final OnFirstFrameRenderedListener onFirstFrameRenderedListener = new OnFirstFrameRenderedListener() {
+    private final FlutterUiDisplayListener onFirstFrameRenderedListener = new FlutterUiDisplayListener() {
+
         int i = 0;
 
         @Override
-        public void onFirstFrameRendered() {
-
+        public void onFlutterUiDisplayed() {
             if (FlutterBoost.instance().platform().whenEngineStart() == FlutterBoost.ConfigBuilder.FLUTTER_ACTIVITY_CREATED) {
                 long now = new Date().getTime();
                 long flutterPostFrameCallTime = FlutterBoost.instance().getFlutterPostFrameCallTime();
@@ -76,7 +76,7 @@ public class FlutterSplashView extends FrameLayout {
                 handler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        onFirstFrameRenderedListener.onFirstFrameRendered();
+                        onFirstFrameRenderedListener.onFlutterUiDisplayed();
                     }
                 }, 200);
 
@@ -86,9 +86,19 @@ public class FlutterSplashView extends FrameLayout {
                     transitionToFlutter();
                 }
             }
-
-
         }
+
+        @Override
+        public void onFlutterUiNoLongerDisplayed() {
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    onFirstFrameRenderedListener.onFlutterUiNoLongerDisplayed();
+                }
+            }, 200);
+        }
+
+
     };
 
     @NonNull
@@ -127,7 +137,7 @@ public class FlutterSplashView extends FrameLayout {
     public void displayFlutterViewWithSplash(@NonNull XFlutterView flutterView, @Nullable SplashScreen splashScreen) {
         // If we were displaying a previous FlutterView, remove it.
         if (this.flutterView != null) {
-            this.flutterView.removeOnFirstFrameRenderedListener(onFirstFrameRenderedListener);
+            this.flutterView.removeFlutterUiDisplayListener(onFirstFrameRenderedListener);
             removeView(this.flutterView);
         }
         // If we were displaying a previous splash screen View, remove it.
@@ -148,7 +158,7 @@ public class FlutterSplashView extends FrameLayout {
             splashScreenView = splashScreen.createSplashView(getContext(), splashScreenState);
             splashScreenView.setBackgroundColor(Color.WHITE);
             addView(this.splashScreenView);
-            flutterView.addOnFirstFrameRenderedListener(onFirstFrameRenderedListener);
+            flutterView.addFlutterUiDisplayListener(onFirstFrameRenderedListener);
         }
     }
 

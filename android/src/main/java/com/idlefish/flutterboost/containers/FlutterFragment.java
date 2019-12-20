@@ -461,7 +461,7 @@ public class FlutterFragment extends Fragment implements FlutterActivityAndFragm
      * <p>
      * This method is called after {@link #provideFlutterEngine(Context)}, and after the given
      * {@link FlutterEngine} has been attached to the owning {@code FragmentActivity}. See
-     * {@link io.flutter.embedding.engine.plugins.activity.ActivityControlSurface#attachToActivity(Activity, Lifecycle)}.
+     * .
      * <p>
      * It is possible that the owning {@code FragmentActivity} opted not to connect itself as
      * an {@link io.flutter.embedding.engine.plugins.activity.ActivityControlSurface}. In that
@@ -469,8 +469,8 @@ public class FlutterFragment extends Fragment implements FlutterActivityAndFragm
      * {@code Activity} at the time that this method is invoked.
      * <p>
      * The default behavior of this method is to defer to the owning {@code FragmentActivity}
-     * as a {@link FlutterEngineConfigurator}. Subclasses can override this method if the
-     * subclass needs to override the {@code FragmentActivity}'s behavior, or add to it.
+     * as a {@link FlutterEngineConfigurator}. Subclasses can Override this method if the
+     * subclass needs to Override the {@code FragmentActivity}'s behavior, or add to it.
      * <p>
      * Used by this {@code NewFlutterFragment}'s {@link FlutterActivityAndFragmentDelegate.Host}
      */
@@ -480,6 +480,11 @@ public class FlutterFragment extends Fragment implements FlutterActivityAndFragm
         if (attachedActivity instanceof FlutterEngineConfigurator) {
             ((FlutterEngineConfigurator) attachedActivity).configureFlutterEngine(flutterEngine);
         }
+    }
+
+    @Override
+    public void cleanUpFlutterEngine(FlutterEngine flutterEngine) {
+        
     }
 
     /**
