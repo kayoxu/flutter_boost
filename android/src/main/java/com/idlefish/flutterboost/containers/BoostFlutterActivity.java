@@ -459,8 +459,8 @@ public class BoostFlutterActivity extends Activity
     }
 
     @Override
-    public void cleanUpFlutterEngine(FlutterEngine flutterEngine) {
-        
+    public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+
     }
 
 

@@ -483,8 +483,8 @@ public class FlutterFragment extends Fragment implements FlutterActivityAndFragm
     }
 
     @Override
-    public void cleanUpFlutterEngine(FlutterEngine flutterEngine) {
-        
+    public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+
     }
 
     /**

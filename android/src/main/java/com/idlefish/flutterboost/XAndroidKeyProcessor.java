@@ -6,6 +6,7 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 
 import io.flutter.embedding.engine.systemchannels.KeyEventChannel;
+import io.flutter.plugin.editing.TextInputPlugin;
 
 public class XAndroidKeyProcessor {
     @NonNull
