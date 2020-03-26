@@ -2,9 +2,9 @@ package com.taobao.idlefish.flutterboostexample;
 
 import android.os.Bundle;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import android.view.View;
 import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
@@ -45,15 +45,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         Map params = new HashMap();
-        params.put("test1", "v_test1");
-        params.put("test2", "v_test2");
+        params.put("test1","v_test1");
+        params.put("test2","v_test2");
         //Add some params if needed.
         if (v == mOpenNative) {
-            PageRouter.openPageByUrl(this, PageRouter.NATIVE_PAGE_URL, params);
+            PageRouter.openPageByUrl(this, PageRouter.NATIVE_PAGE_URL , params);
         } else if (v == mOpenFlutter) {
-            PageRouter.openPageByUrl(this, PageRouter.FLUTTER_PAGE_URL, params);
+            PageRouter.openPageByUrl(this, PageRouter.FLUTTER_PAGE_URL,params);
         } else if (v == mOpenFlutterFragment) {
-            PageRouter.openPageByUrl(this, PageRouter.FLUTTER_FRAGMENT_PAGE_URL, params);
+            PageRouter.openPageByUrl(this, PageRouter.FLUTTER_FRAGMENT_PAGE_URL,params);
         }
     }
 }

@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,8 +34,6 @@ import java.util.Set;
 
 import io.flutter.Log;
 import io.flutter.embedding.android.*;
-import io.flutter.embedding.android.FlutterView.RenderMode;
-import io.flutter.embedding.android.FlutterView.TransparencyMode;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.renderer.FlutterRenderer;
 import io.flutter.embedding.engine.renderer.FlutterUiDisplayListener;
@@ -70,9 +69,9 @@ public class XFlutterView extends FrameLayout {
 
   // Behavior configuration of this FlutterView.
   @NonNull
-  private RenderMode renderMode;
+  private FlutterView.RenderMode renderMode;
   @Nullable
-  private TransparencyMode transparencyMode;
+  private FlutterView.TransparencyMode transparencyMode;
 
   // Internal view hierarchy references.
   @Nullable
@@ -160,7 +159,7 @@ public class XFlutterView extends FrameLayout {
    * {@code FlutterView} requires an {@code Activity} instead of a generic {@code Context}
    * to be compatible with {@link PlatformViewsController}.
    */
-  public XFlutterView(@NonNull Context context, @NonNull RenderMode renderMode) {
+  public XFlutterView(@NonNull Context context, @NonNull FlutterView.RenderMode renderMode) {
     this(context, null, renderMode, null);
   }
 
@@ -171,8 +170,8 @@ public class XFlutterView extends FrameLayout {
    * {@code FlutterView} requires an {@code Activity} instead of a generic {@code Context}
    * to be compatible with {@link PlatformViewsController}.
    */
-  public XFlutterView(@NonNull Context context, @NonNull TransparencyMode transparencyMode) {
-    this(context, null, RenderMode.surface, transparencyMode);
+  public XFlutterView(@NonNull Context context, @NonNull FlutterView.TransparencyMode transparencyMode) {
+    this(context, null, FlutterView.RenderMode.surface, transparencyMode);
   }
 
   /**
@@ -182,7 +181,7 @@ public class XFlutterView extends FrameLayout {
    * {@code FlutterView} requires an {@code Activity} instead of a generic {@code Context}
    * to be compatible with {@link PlatformViewsController}.
    */
-  public XFlutterView(@NonNull Context context, @NonNull RenderMode renderMode, @NonNull TransparencyMode transparencyMode) {
+  public XFlutterView(@NonNull Context context, @NonNull FlutterView.RenderMode renderMode, @NonNull FlutterView.TransparencyMode transparencyMode) {
     this(context, null, renderMode, transparencyMode);
   }
 
@@ -197,11 +196,11 @@ public class XFlutterView extends FrameLayout {
     this(context, attrs, null, null);
   }
 
-  private XFlutterView(@NonNull Context context, @Nullable AttributeSet attrs, @Nullable RenderMode renderMode, @Nullable TransparencyMode transparencyMode) {
+  private XFlutterView(@NonNull Context context, @Nullable AttributeSet attrs, @Nullable FlutterView.RenderMode renderMode, @Nullable FlutterView.TransparencyMode transparencyMode) {
     super(context, attrs);
 
-    this.renderMode = renderMode == null ? RenderMode.surface : renderMode;
-    this.transparencyMode = transparencyMode != null ? transparencyMode : TransparencyMode.opaque;
+    this.renderMode = renderMode == null ? FlutterView.RenderMode.surface : renderMode;
+    this.transparencyMode = transparencyMode != null ? transparencyMode : FlutterView.TransparencyMode.opaque;
 
     init();
   }
@@ -212,7 +211,7 @@ public class XFlutterView extends FrameLayout {
     switch (renderMode) {
       case surface:
         Log.v(TAG, "Internally using a FlutterSurfaceView.");
-        FlutterSurfaceView flutterSurfaceView = new FlutterSurfaceView(getContext(), transparencyMode == TransparencyMode.transparent);
+        FlutterSurfaceView flutterSurfaceView = new FlutterSurfaceView(getContext(), transparencyMode == FlutterView.TransparencyMode.transparent);
         renderSurface = flutterSurfaceView;
         addView(flutterSurfaceView);
         break;
@@ -607,6 +606,7 @@ public class XFlutterView extends FrameLayout {
     isFlutterUiDisplayed = flutterRenderer.isDisplayingFlutterUi();
     renderSurface.attachToRenderer(flutterRenderer);
     flutterRenderer.addIsDisplayingFlutterUiListener(flutterUiDisplayListener);
+    this.flutterEngine.getPlatformViewsController().attachToView(this);
 
 
 
@@ -692,7 +692,7 @@ public class XFlutterView extends FrameLayout {
 
     // Disconnect the FlutterEngine's PlatformViewsController from the AccessibilityBridge.
     flutterEngine.getPlatformViewsController().detachAccessibiltyBridge();
-
+    flutterEngine.getPlatformViewsController().detachFromView();
     // Disconnect and clean up the AccessibilityBridge.
     accessibilityBridge.release();
     accessibilityBridge = null;

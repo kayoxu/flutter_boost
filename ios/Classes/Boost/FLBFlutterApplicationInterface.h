@@ -36,6 +36,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)startFlutterWithPlatform:(id<FLBPlatform>)platform
                       withEngine:(FlutterEngine* _Nullable)engine
+                        withPluginRegisterred:(BOOL)registerPlugin
                          onStart:(void (^)(FlutterEngine *engine))callback;
 
 - (FlutterViewController *)flutterViewController;
@@ -45,6 +46,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)addUniqueViewController:(id<FLBFlutterContainer>)vc;
 - (void)removeViewController:(id<FLBFlutterContainer>)vc;
 - (BOOL)isTop:(NSString *)pageId;
+- (NSInteger)pageCount;
 
 #pragma mark - App Control
 - (void)pause;

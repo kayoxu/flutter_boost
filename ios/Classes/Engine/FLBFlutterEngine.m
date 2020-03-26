@@ -57,14 +57,6 @@
                                                           nibName:nil
                                                            bundle:nil];
         _dummy.name = kIgnoreMessageWithName;
-        
-        Class clazz = NSClassFromString(@"GeneratedPluginRegistrant");
-        if (clazz) {
-            if ([clazz respondsToSelector:NSSelectorFromString(@"registerWithRegistry:")]) {
-                [clazz performSelector:NSSelectorFromString(@"registerWithRegistry:")
-                            withObject:_engine];
-            }
-        }
     }
     
     return self;
@@ -105,15 +97,10 @@
                          arguments:@{@"type":@"foreground"}];
 }
 
-- (FlutterEngine *)engine
-{
-    return _engine;
-}
-
 - (void)atacheToViewController:(FlutterViewController *)vc
 {
     if(_engine.viewController != vc){
-        [(FLBFlutterViewContainer *)_engine.viewController surfaceUpdated:NO];
+//        [(FLBFlutterViewContainer *)_engine.viewController surfaceUpdated:NO];
         _engine.viewController = vc;
     }
 }
@@ -127,10 +114,13 @@
 
 - (void)prepareEngineIfNeeded
 {
-    [(FLBFlutterViewContainer *)_engine.viewController surfaceUpdated:NO];
-    NSLog(@"[XDEBUG]---surface changed--reset-");
+//    [(FLBFlutterViewContainer *)_engine.viewController surfaceUpdated:NO];
+//    NSLog(@"[XDEBUG]---surface changed--reset-");
 //    [self detach];
 }
 
+- (void)dealloc{
+    [self.engine setViewController:nil];
+}
 @end
 

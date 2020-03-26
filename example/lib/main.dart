@@ -17,6 +17,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     FlutterBoost.singleton.registerPageBuilders({
+      'embeded': (pageName, params, _)=>EmbededFirstRouteWidget(),
       'first': (pageName, params, _) => FirstRouteWidget(),
       'second': (pageName, params, _) => SecondRouteWidget(),
       'tab': (pageName, params, _) => TabRouteWidget(),
@@ -29,6 +30,7 @@ class _MyAppState extends State<MyApp> {
         return FlutterRouteWidget(params:params);
       },
     });
+    FlutterBoost.singleton.addBoostNavigatorObserver(TestBoostNavigatorObserver());
   }
 
   @override
@@ -45,3 +47,22 @@ class _MyAppState extends State<MyApp> {
       String pageName, String uniqueId, Map params, Route route, Future _) {
   }
 }
+class TestBoostNavigatorObserver extends NavigatorObserver{
+  void didPush(Route<dynamic> route, Route<dynamic> previousRoute) {
+
+    print("flutterboost#didPush");
+  }
+
+  void didPop(Route<dynamic> route, Route<dynamic> previousRoute) {
+    print("flutterboost#didPop");
+  }
+
+  void didRemove(Route<dynamic> route, Route<dynamic> previousRoute) {
+    print("flutterboost#didRemove");
+  }
+
+  void didReplace({Route<dynamic> newRoute, Route<dynamic> oldRoute}) {
+    print("flutterboost#didReplace");
+  }
+}
+
