@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,32 +36,13 @@ import io.flutter.Log;
 import io.flutter.embedding.android.*;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.renderer.FlutterRenderer;
-import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
+import io.flutter.embedding.engine.renderer.FlutterUiDisplayListener;
+import io.flutter.embedding.engine.renderer.RenderSurface;
 import io.flutter.plugin.editing.TextInputPlugin;
 import io.flutter.plugin.platform.PlatformViewsController;
 import io.flutter.view.AccessibilityBridge;
 
-/**
- * Displays a Flutter UI on an Android device.
- * <p>
- * A {@code FlutterView}'s UI is painted by a corresponding {@link FlutterEngine}.
- * <p>
- * A {@code FlutterView} can operate in 2 different {@link RenderMode}s:
- * <ol>
- *   <li>{@link RenderMode#surface}, which paints a Flutter UI to a {@link android.view.SurfaceView}.
- *   This mode has the best performance, but a {@code FlutterView} in this mode cannot be positioned
- *   between 2 other Android {@code View}s in the z-index, nor can it be animated/transformed.
- *   Unless the special capabilities of a {@link android.graphics.SurfaceTexture} are required,
- *   developers should strongly prefer this render mode.</li>
- *   <li>{@link RenderMode#texture}, which paints a Flutter UI to a {@link android.graphics.SurfaceTexture}.
- *   This mode is not as performant as {@link RenderMode#surface}, but a {@code FlutterView} in this
- *   mode can be animated and transformed, as well as positioned in the z-index between 2+ other
- *   Android {@code Views}. Unless the special capabilities of a {@link android.graphics.SurfaceTexture}
- *   are required, developers should strongly prefer the {@link RenderMode#surface} render mode.</li>
- * </ol>
- * See <a>https://source.android.com/devices/graphics/arch-tv#surface_or_texture</a> for more
- * information comparing {@link android.view.SurfaceView} and {@link android.view.TextureView}.
- */
+
 public class XFlutterView extends FrameLayout {
   private static final String TAG = "FlutterView";
 
@@ -72,8 +54,10 @@ public class XFlutterView extends FrameLayout {
 
   // Internal view hierarchy references.
   @Nullable
-  private FlutterRenderer.RenderSurface renderSurface;
-  private final Set<OnFirstFrameRenderedListener> onFirstFrameRenderedListeners = new HashSet<>();
+  private RenderSurface renderSurface;
+
+  private final Set<FlutterUiDisplayListener> flutterUiDisplayListeners = new HashSet<>();
+
   private boolean didRenderFirstFrame;
 
   // Connections to a Flutter execution context.
@@ -98,6 +82,9 @@ public class XFlutterView extends FrameLayout {
 
   private  boolean hasAddFirstFrameRenderedListener=false;
 
+  private boolean isFlutterUiDisplayed;
+
+
   // Directly implemented View behavior that communicates with Flutter.
   private final FlutterRenderer.ViewportMetrics viewportMetrics = new FlutterRenderer.ViewportMetrics();
 
@@ -108,23 +95,32 @@ public class XFlutterView extends FrameLayout {
     }
   };
 
-  private final OnFirstFrameRenderedListener onFirstFrameRenderedListener = new OnFirstFrameRenderedListener() {
-    @Override
-    public void onFirstFrameRendered() {
-      didRenderFirstFrame = true;
 
-      for (OnFirstFrameRenderedListener listener : onFirstFrameRenderedListeners) {
-        listener.onFirstFrameRendered();
+  private final FlutterUiDisplayListener flutterUiDisplayListener = new FlutterUiDisplayListener() {
+    @Override
+    public void onFlutterUiDisplayed() {
+      isFlutterUiDisplayed = true;
+
+      for (FlutterUiDisplayListener listener : flutterUiDisplayListeners) {
+        listener.onFlutterUiDisplayed();
+      }
+    }
+
+    @Override
+    public void onFlutterUiNoLongerDisplayed() {
+      isFlutterUiDisplayed = false;
+
+      for (FlutterUiDisplayListener listener : flutterUiDisplayListeners) {
+        listener.onFlutterUiNoLongerDisplayed();
       }
     }
   };
+
 
   /**
    * Constructs a {@code FlutterView} programmatically, without any XML attributes.
    * <p>
    * <ul>
-   *   <li>{@link #renderMode} defaults to {@link RenderMode#surface}.</li>
-   *   <li>{@link #transparencyMode} defaults to {@link TransparencyMode#opaque}.</li>
    * </ul>
    * {@code FlutterView} requires an {@code Activity} instead of a generic {@code Context}
    * to be compatible with {@link PlatformViewsController}.
@@ -133,26 +129,12 @@ public class XFlutterView extends FrameLayout {
     this(context, null, null, null);
   }
 
-  /**
-   * Constructs a {@code FlutterView} programmatically, without any XML attributes,
-   * and allows selection of a {@link #renderMode}.
-   * <p>
-   * {@link #transparencyMode} defaults to {@link TransparencyMode#opaque}.
-   * <p>
-   * {@code FlutterView} requires an {@code Activity} instead of a generic {@code Context}
-   * to be compatible with {@link PlatformViewsController}.
-   */
+
   public XFlutterView(@NonNull Context context, @NonNull FlutterView.RenderMode renderMode) {
     this(context, null, renderMode, null);
   }
 
-  /**
-   * Constructs a {@code FlutterView} programmatically, without any XML attributes,
-   * assumes the use of {@link RenderMode#surface}, and allows selection of a {@link #transparencyMode}.
-   * <p>
-   * {@code FlutterView} requires an {@code Activity} instead of a generic {@code Context}
-   * to be compatible with {@link PlatformViewsController}.
-   */
+
   public XFlutterView(@NonNull Context context, @NonNull FlutterView.TransparencyMode transparencyMode) {
     this(context, null, FlutterView.RenderMode.surface, transparencyMode);
   }
@@ -231,20 +213,20 @@ public class XFlutterView extends FrameLayout {
     return didRenderFirstFrame;
   }
 
-  /**
-   * Adds the given {@code listener} to this {@code FlutterView}, to be notified upon Flutter's
-   * first rendered frame.
-   */
-  public void addOnFirstFrameRenderedListener(@NonNull OnFirstFrameRenderedListener listener) {
-    onFirstFrameRenderedListeners.add(listener);
+
+
+
+
+  public void addOnFirstFrameRenderedListener(@NonNull FlutterUiDisplayListener listener) {
+    flutterUiDisplayListeners.add(listener);
   }
 
   /**
    * Removes the given {@code listener}, which was previously added with
-   * {@link #addOnFirstFrameRenderedListener(OnFirstFrameRenderedListener)}.
+   * {@link #addOnFirstFrameRenderedListener(FlutterUiDisplayListener)}.
    */
-  public void removeOnFirstFrameRenderedListener(@NonNull OnFirstFrameRenderedListener listener) {
-    onFirstFrameRenderedListeners.remove(listener);
+  public void removeOnFirstFrameRenderedListener(@NonNull FlutterUiDisplayListener listener) {
+    flutterUiDisplayListeners.remove(listener);
   }
 
   //------- Start: Process View configuration that Flutter cares about. ------
@@ -417,7 +399,7 @@ public class XFlutterView extends FrameLayout {
    */
   @Override
   public boolean checkInputConnectionProxy(View view) {
-    return flutterEngine != null
+    return flutterEngine != null&&view!=null
             ? flutterEngine.getPlatformViewsController().checkInputConnectionProxy(view)
             : super.checkInputConnectionProxy(view);
   }
@@ -585,28 +567,16 @@ public class XFlutterView extends FrameLayout {
     }
     this.flutterEngine = flutterEngine;
 
-    // Instruct our FlutterRenderer that we are now its designated RenderSurface.
     FlutterRenderer flutterRenderer = this.flutterEngine.getRenderer();
-    didRenderFirstFrame = flutterRenderer.hasRenderedFirstFrame();
-    if(!hasAddFirstFrameRenderedListener){
-      flutterRenderer.addOnFirstFrameRenderedListener(onFirstFrameRenderedListener);
-      hasAddFirstFrameRenderedListener=true;
-    }
-    flutterRenderer.attachToRenderSurface(renderSurface);
-
-    // Initialize various components that know how to process Android View I/O
-    // in a way that Flutter understands.
+    isFlutterUiDisplayed = flutterRenderer.isDisplayingFlutterUi();
+    renderSurface.attachToRenderer(flutterRenderer);
+    flutterRenderer.addIsDisplayingFlutterUiListener(flutterUiDisplayListener);
+    this.flutterEngine.getPlatformViewsController().attachToView(this);
 
 
-    if(textInputPlugin==null){
-      textInputPlugin = new XTextInputPlugin(
-              this,
-              flutterEngine.getTextInputChannel(),
-              this.flutterEngine.getPlatformViewsController()
-      );
-    }
-
-    textInputPlugin.setTextInputMethodHandler();
+    textInputPlugin= XTextInputPlugin.getTextInputPlugin(  this.flutterEngine.getDartExecutor(),
+            this.flutterEngine.getPlatformViewsController());
+    textInputPlugin.updateView(this);
     textInputPlugin.getInputMethodManager().restartInput(this);
 
 
@@ -680,7 +650,7 @@ public class XFlutterView extends FrameLayout {
 
     // Disconnect the FlutterEngine's PlatformViewsController from the AccessibilityBridge.
     flutterEngine.getPlatformViewsController().detachAccessibiltyBridge();
-
+    flutterEngine.getPlatformViewsController().detachFromView();
     // Disconnect and clean up the AccessibilityBridge.
     accessibilityBridge.release();
     accessibilityBridge = null;
@@ -691,15 +661,21 @@ public class XFlutterView extends FrameLayout {
     // TODO(mattcarroll): once this is proven to work, move this line ot TextInputPlugin
 
     // Instruct our FlutterRenderer that we are no longer interested in being its RenderSurface.
+
+
     FlutterRenderer flutterRenderer = flutterEngine.getRenderer();
-//    didRenderFirstFrame = false;
-    flutterRenderer.removeOnFirstFrameRenderedListener(onFirstFrameRenderedListener);
-    flutterRenderer.detachFromRenderSurface();
+    isFlutterUiDisplayed = false;
+    flutterRenderer.removeIsDisplayingFlutterUiListener(flutterUiDisplayListener);
+    flutterRenderer.stopRenderingToSurface();
+    flutterRenderer.setSemanticsEnabled(false);
+    renderSurface.detachFromRenderer();
+
     flutterEngine = null;
+
   }
   public void release(){
     if(textInputPlugin!=null){
-      textInputPlugin.release();
+      textInputPlugin.release(this);
     }
   }
 
@@ -784,6 +760,7 @@ public class XFlutterView extends FrameLayout {
               + "FlutterView was not attached to a FlutterEngine.");
       return;
     }
+    if(viewportMetrics.width==0&&viewportMetrics.height==0)return;
 
     viewportMetrics.devicePixelRatio = getResources().getDisplayMetrics().density;
     flutterEngine.getRenderer().setViewportMetrics(viewportMetrics);

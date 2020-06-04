@@ -8,7 +8,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.2'
+        classpath 'com.android.tools.build:gradle:3.2.0'
     }
 }
 
@@ -22,8 +22,8 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion '27.0.3'
+    compileSdkVersion 29
+    buildToolsVersion '28.0.3'
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 28
@@ -35,11 +35,12 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.0.0'
-    implementation 'com.google.android.material:material:1.0.0'
-    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.lifecycle:lifecycle-common-java8:2.0.0'
-    implementation 'com.alibaba:fastjson:1.2.41'
+    compileOnly 'androidx.legacy:legacy-support-v4:1.0.0'
+    compileOnly 'com.google.android.material:material:1.0.0'
+    compileOnly 'androidx.appcompat:appcompat:1.0.0'
+    compileOnly 'androidx.annotation:annotation:1.0.0'
+    implementation 'androidx.lifecycle:lifecycle-common-java8:2.1.0'
+    compileOnly 'com.alibaba:fastjson:1.2.41'
 
 }
 

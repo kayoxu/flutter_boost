@@ -21,6 +21,7 @@ import android.view.*;
 import android.widget.*;
 import com.idlefish.flutterboost.FlutterBoost;
 import com.idlefish.flutterboost.XFlutterView;
+import com.idlefish.flutterboost.XPlatformPlugin;
 import io.flutter.Log;
 import io.flutter.embedding.android.DrawableSplashScreen;
 import io.flutter.embedding.android.FlutterView;
@@ -55,6 +56,7 @@ public class BoostFlutterActivity extends Activity
     // Default configuration.
     protected static final String DEFAULT_BACKGROUND_MODE = BackgroundMode.opaque.name();
 
+    private static XPlatformPlugin sXPlatformPlugin;
 
     public static Intent createDefaultIntent(@NonNull Context launchContext) {
         return withNewEngine().build(launchContext);
@@ -73,7 +75,7 @@ public class BoostFlutterActivity extends Activity
         private Map params = new HashMap();
 
 
-        protected NewEngineIntentBuilder(@NonNull Class<? extends BoostFlutterActivity> activityClass) {
+        public NewEngineIntentBuilder(@NonNull Class<? extends BoostFlutterActivity> activityClass) {
             this.activityClass = activityClass;
         }
 
@@ -439,12 +441,8 @@ public class BoostFlutterActivity extends Activity
 
     @Nullable
     @Override
-    public PlatformPlugin providePlatformPlugin(@Nullable Activity activity, @NonNull FlutterEngine flutterEngine) {
-        if (activity != null) {
-            return new PlatformPlugin(getActivity(), flutterEngine.getPlatformChannel());
-        } else {
-            return null;
-        }
+    public XPlatformPlugin providePlatformPlugin(@NonNull FlutterEngine flutterEngine) {
+        return BoostViewUtils.getPlatformPlugin(flutterEngine.getPlatformChannel());
     }
 
     /**
@@ -456,6 +454,11 @@ public class BoostFlutterActivity extends Activity
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         // No-op. Hook for subclasses.
+    }
+
+    @Override
+    public void cleanUpFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+
     }
 
 

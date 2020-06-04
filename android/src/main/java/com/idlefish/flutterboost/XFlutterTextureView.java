@@ -1,151 +1,186 @@
 package com.idlefish.flutterboost;
-
 import android.content.Context;
 import android.graphics.SurfaceTexture;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.TextureView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import io.flutter.Log;
 import io.flutter.embedding.engine.renderer.FlutterRenderer;
-import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
+import io.flutter.embedding.engine.renderer.RenderSurface;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
+public class XFlutterTextureView extends TextureView implements RenderSurface {
+  private static final String TAG = "FlutterTextureView";
 
-public class XFlutterTextureView extends TextureView implements FlutterRenderer.RenderSurface {
-    private static final String TAG = "XFlutterTextureView";
-    private boolean isSurfaceAvailableForRendering;
-    private boolean isAttachedToFlutterRenderer;
-    @Nullable
-    private FlutterRenderer flutterRenderer;
-    @NonNull
-    private Set<OnFirstFrameRenderedListener> onFirstFrameRenderedListeners;
-    private final SurfaceTextureListener surfaceTextureListener;
+  private boolean isSurfaceAvailableForRendering = false;
+  private boolean isAttachedToFlutterRenderer = false;
+  @Nullable
+  private FlutterRenderer flutterRenderer;
 
-    public XFlutterTextureView(@NonNull Context context) {
-        this(context, (AttributeSet)null);
+  private Surface renderSurface;
+
+  // Connects the {@code SurfaceTexture} beneath this {@code TextureView} with Flutter's native code.
+  // Callbacks are received by this Object and then those messages are forwarded to our
+  // FlutterRenderer, and then on to the JNI bridge over to native Flutter code.
+  private final SurfaceTextureListener surfaceTextureListener = new SurfaceTextureListener() {
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+      Log.v(TAG, "SurfaceTextureListener.onSurfaceTextureAvailable()");
+      isSurfaceAvailableForRendering = true;
+
+      // If we're already attached to a FlutterRenderer then we're now attached to both a renderer
+      // and the Android window, so we can begin rendering now.
+      if (isAttachedToFlutterRenderer) {
+        connectSurfaceToRenderer();
+      }
     }
 
-    public XFlutterTextureView(@NonNull Context context, @Nullable AttributeSet attrs) {
-        super(context, attrs);
-        this.isSurfaceAvailableForRendering = false;
-        this.isAttachedToFlutterRenderer = false;
-        this.onFirstFrameRenderedListeners = new HashSet();
-        this.surfaceTextureListener = new SurfaceTextureListener() {
-            public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-                Log.v("FlutterTextureView", "SurfaceTextureListener.onSurfaceTextureAvailable()");
-                XFlutterTextureView.this.isSurfaceAvailableForRendering = true;
-                if (XFlutterTextureView.this.isAttachedToFlutterRenderer) {
-                    XFlutterTextureView.this.connectSurfaceToRenderer();
-                }
-
-            }
-
-            public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
-                Log.v("FlutterTextureView", "SurfaceTextureListener.onSurfaceTextureSizeChanged()");
-                if (XFlutterTextureView.this.isAttachedToFlutterRenderer) {
-                    XFlutterTextureView.this.changeSurfaceSize(width, height);
-                }
-
-            }
-
-            public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
-            }
-
-            public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
-                Log.v("FlutterTextureView", "SurfaceTextureListener.onSurfaceTextureDestroyed()");
-                XFlutterTextureView.this.isSurfaceAvailableForRendering = false;
-                if (XFlutterTextureView.this.isAttachedToFlutterRenderer) {
-                    XFlutterTextureView.this.disconnectSurfaceFromRenderer();
-                }
-
-                return true;
-            }
-        };
-        this.init();
+    @Override
+    public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
+      Log.v(TAG, "SurfaceTextureListener.onSurfaceTextureSizeChanged()");
+      if (isAttachedToFlutterRenderer) {
+        changeSurfaceSize(width, height);
+      }
     }
 
-    private void init() {
-        this.setSurfaceTextureListener(this.surfaceTextureListener);
+    @Override
+    public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+      // Invoked every time a new frame is available. We don't care.
     }
 
-    public void attachToRenderer(@NonNull FlutterRenderer flutterRenderer) {
-        Log.v("FlutterTextureView", "Attaching to FlutterRenderer.");
-        if (this.flutterRenderer != null) {
-            Log.v("FlutterTextureView", "Already connected to a FlutterRenderer. Detaching from old one and attaching to new one.");
-            this.flutterRenderer.detachFromRenderSurface();
-        }
+    @Override
+    public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
+      Log.v(TAG, "SurfaceTextureListener.onSurfaceTextureDestroyed()");
+      isSurfaceAvailableForRendering = false;
 
-        this.flutterRenderer = flutterRenderer;
-        this.isAttachedToFlutterRenderer = true;
-        if (this.isSurfaceAvailableForRendering) {
-            Log.v("FlutterTextureView", "Surface is available for rendering. Connecting FlutterRenderer to Android surface.");
-            this.connectSurfaceToRenderer();
-        }
+      // If we're attached to a FlutterRenderer then we need to notify it that our SurfaceTexture
+      // has been destroyed.
+      if (isAttachedToFlutterRenderer) {
+        disconnectSurfaceFromRenderer();
+      }
 
+      // Return true to indicate that no further painting will take place
+      // within this SurfaceTexture.
+      return true;
+    }
+  };
+
+  /**
+   * Constructs a {@code FlutterTextureView} programmatically, without any XML attributes.
+   */
+  public XFlutterTextureView(@NonNull Context context) {
+    this(context, null);
+  }
+
+  /**
+   * Constructs a {@code FlutterTextureView} in an XML-inflation-compliant manner.
+   */
+  public XFlutterTextureView(@NonNull Context context, @Nullable AttributeSet attrs) {
+    super(context, attrs);
+    init();
+  }
+
+  private void init() {
+    // Listen for when our underlying SurfaceTexture becomes available, changes size, or
+    // gets destroyed, and take the appropriate actions.
+    setSurfaceTextureListener(surfaceTextureListener);
+  }
+
+  @Nullable
+  @Override
+  public FlutterRenderer getAttachedRenderer() {
+    return flutterRenderer;
+  }
+
+  /**
+   * Invoked by the owner of this {@code FlutterTextureView} when it wants to begin rendering
+   * a Flutter UI to this {@code FlutterTextureView}.
+   *
+   * If an Android {@link SurfaceTexture} is available, this method will give that
+   * {@link SurfaceTexture} to the given {@link FlutterRenderer} to begin rendering
+   * Flutter's UI to this {@code FlutterTextureView}.
+   *
+   * If no Android {@link SurfaceTexture} is available yet, this {@code FlutterTextureView}
+   * will wait until a {@link SurfaceTexture} becomes available and then give that
+   * {@link SurfaceTexture} to the given {@link FlutterRenderer} to begin rendering
+   * Flutter's UI to this {@code FlutterTextureView}.
+   */
+  public void attachToRenderer(@NonNull FlutterRenderer flutterRenderer) {
+    Log.v(TAG, "Attaching to FlutterRenderer.");
+    if (this.flutterRenderer != null) {
+      Log.v(TAG, "Already connected to a FlutterRenderer. Detaching from old one and attaching to new one.");
+      this.flutterRenderer.stopRenderingToSurface();
     }
 
-    public void detachFromRenderer() {
-        if (this.flutterRenderer != null) {
-            if (this.getWindowToken() != null) {
-                Log.v("FlutterTextureView", "Disconnecting FlutterRenderer from Android surface.");
-                this.disconnectSurfaceFromRenderer();
-            }
+    this.flutterRenderer = flutterRenderer;
+    isAttachedToFlutterRenderer = true;
 
-            this.flutterRenderer = null;
-            this.isAttachedToFlutterRenderer = false;
-        } else {
-            Log.w("FlutterTextureView", "detachFromRenderer() invoked when no FlutterRenderer was attached.");
-        }
+    // If we're already attached to an Android window then we're now attached to both a renderer
+    // and the Android window. We can begin rendering now.
+    if (isSurfaceAvailableForRendering) {
+      Log.v(TAG, "Surface is available for rendering. Connecting FlutterRenderer to Android surface.");
+      connectSurfaceToRenderer();
+    }
+  }
 
+  /**
+   * Invoked by the owner of this {@code FlutterTextureView} when it no longer wants to render
+   * a Flutter UI to this {@code FlutterTextureView}.
+   *
+   * This method will cease any on-going rendering from Flutter to this {@code FlutterTextureView}.
+   */
+  public void detachFromRenderer() {
+    if (flutterRenderer != null) {
+      // If we're attached to an Android window then we were rendering a Flutter UI. Now that
+      // this FlutterTextureView is detached from the FlutterRenderer, we need to stop rendering.
+      // TODO(mattcarroll): introduce a isRendererConnectedToSurface() to wrap "getWindowToken() != null"
+      if (getWindowToken() != null) {
+        Log.v(TAG, "Disconnecting FlutterRenderer from Android surface.");
+        disconnectSurfaceFromRenderer();
+      }
+
+      flutterRenderer = null;
+      isAttachedToFlutterRenderer = false;
+    } else {
+      Log.w(TAG, "detachFromRenderer() invoked when no FlutterRenderer was attached.");
+    }
+  }
+
+  // FlutterRenderer and getSurfaceTexture() must both be non-null.
+  private void connectSurfaceToRenderer() {
+    if (flutterRenderer == null || getSurfaceTexture() == null) {
+      throw new IllegalStateException("connectSurfaceToRenderer() should only be called when flutterRenderer and getSurfaceTexture() are non-null.");
     }
 
-    private void connectSurfaceToRenderer() {
-        if (this.flutterRenderer != null && this.getSurfaceTexture() != null) {
-            Surface surface= new Surface(this.getSurfaceTexture());
-            this.flutterRenderer.surfaceCreated(surface);
-            surface.release();
-        } else {
-            throw new IllegalStateException("connectSurfaceToRenderer() should only be called when flutterRenderer and getSurfaceTexture() are non-null.");
-        }
+//    flutterRenderer.startRenderingToSurface(new Surface(getSurfaceTexture()));
+
+    renderSurface = new Surface(getSurfaceTexture());
+    flutterRenderer.startRenderingToSurface(renderSurface);
+  }
+
+  // FlutterRenderer must be non-null.
+  private void changeSurfaceSize(int width, int height) {
+    if (flutterRenderer == null) {
+      throw new IllegalStateException("changeSurfaceSize() should only be called when flutterRenderer is non-null.");
     }
 
-    private void changeSurfaceSize(int width, int height) {
-        if (this.flutterRenderer == null) {
-            throw new IllegalStateException("changeSurfaceSize() should only be called when flutterRenderer is non-null.");
-        } else {
-            Log.v("FlutterTextureView", "Notifying FlutterRenderer that Android surface size has changed to " + width + " x " + height);
-            this.flutterRenderer.surfaceChanged(width, height);
-        }
+    Log.v(TAG, "Notifying FlutterRenderer that Android surface size has changed to " + width + " x " + height);
+    flutterRenderer.surfaceChanged(width, height);
+  }
+
+  // FlutterRenderer must be non-null.
+  private void disconnectSurfaceFromRenderer() {
+    if (flutterRenderer == null) {
+      throw new IllegalStateException("disconnectSurfaceFromRenderer() should only be called when flutterRenderer is non-null.");
     }
 
-    private void disconnectSurfaceFromRenderer() {
-        if (this.flutterRenderer == null) {
-            throw new IllegalStateException("disconnectSurfaceFromRenderer() should only be called when flutterRenderer is non-null.");
-        } else {
-            this.flutterRenderer.surfaceDestroyed();
-        }
+    flutterRenderer.stopRenderingToSurface();
+    if(renderSurface!=null){
+      renderSurface.release();
+      renderSurface = null;
     }
 
-    public void addOnFirstFrameRenderedListener(@NonNull OnFirstFrameRenderedListener listener) {
-        this.onFirstFrameRenderedListeners.add(listener);
-    }
-
-    public void removeOnFirstFrameRenderedListener(@NonNull OnFirstFrameRenderedListener listener) {
-        this.onFirstFrameRenderedListeners.remove(listener);
-    }
-
-    public void onFirstFrameRendered() {
-        Log.v("FlutterTextureView", "onFirstFrameRendered()");
-        Iterator var1 = this.onFirstFrameRenderedListeners.iterator();
-
-        while(var1.hasNext()) {
-            OnFirstFrameRenderedListener listener = (OnFirstFrameRenderedListener)var1.next();
-            listener.onFirstFrameRendered();
-        }
-
-    }
+  }
 }
